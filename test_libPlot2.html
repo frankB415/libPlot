@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>libPlot2 Test</title>
+<style>
+  body { font-family: sans-serif; background: #f4f4f4; margin: 20px; }
+  h2   { color: #333; }
+  .plot-wrap { background: #fff; border: 1px solid #ddd; border-radius:4px;
+               margin-bottom: 16px; padding: 4px; }
+</style>
+</head>
+<body>
+<h2>libPlot2.js – Smoke Test</h2>
+
+<!-- Gruppe 1: Heizung -->
+<div class="plot-wrap">
+  <div class="libPlotCsv1"
+       channels="Vorlauf_GradC, Ruecklauf_GradC, Raum_GradC, Aussen_GradC"
+       style="width:100%;height:220px;"></div>
+</div>
+<div class="plot-wrap">
+  <div class="libPlotCsv1"
+       channels="shellyHeizung_W [kW]"
+       style="width:100%;height:180px;"></div>
+</div>
+
+<!-- Gruppe 2: unabhängig -->
+<div class="plot-wrap">
+  <div class="libPlot4"
+       channels="BattSpannung_V, BattStrom_A"
+       style="width:100%;height:200px;"></div>
+</div>
+
+<script src="libPlot2.js"></script>
+<script>
+// ── Testdaten generieren ────────────────────────────────────────────────────
+function makeData(n, offsetDays) {
+    const now = Date.now() - offsetDays * 86400e3;
+    const tx  = [];
+    const vx  = {
+        Vorlauf_GradC:  [], Ruecklauf_GradC: [],
+        Raum_GradC:     [], Aussen_GradC:    [],
+        shellyHeizung_W: [],
+    };
+    for (let i = 0; i < n; i++) {
+        const t = now - (n - i) * 60e3;   // 1 Punkt pro Minute
+        tx.push(t);
+        vx.Vorlauf_GradC.push(55 + 8 * Math.sin(i / 30) + (Math.random() - 0.5));
+        vx.Ruecklauf_GradC.push(42 + 5 * Math.sin(i / 30 + 0.5));
+        vx.Raum_GradC.push(21 + Math.sin(i / 60));
+        vx.Aussen_GradC.push(5 + 10 * Math.sin(i / 200) + (Math.random() - 0.5) * 0.5);
+        vx.shellyHeizung_W.push(i % 40 < 20 ? 1800 + Math.random()*200 : 0);
+    }
+    // inject a NaN gap
+    for (let i = 100; i < 110; i++) vx.Vorlauf_GradC[i] = NaN;
+    return { tx, vx };
+}
+
+function makeBattData(n) {
+    const now = Date.now();
+    const tx  = [];
+    const vx  = { BattSpannung_V: [], BattStrom_A: [] };
+    for (let i = 0; i < n; i++) {
+        tx.push(now - (n - i) * 30e3);
+        vx.BattSpannung_V.push(48 + 4 * Math.sin(i / 50));
+        vx.BattStrom_A.push(20 * Math.sin(i / 25));
+    }
+    return { tx, vx };
+}
+
+// ── configure ───────────────────────────────────────────────────────────────
+libPlot.configure('libPlotCsv1', {
+    getLabel: ch => ({
+        Vorlauf_GradC:   'Vorlauf',
+        Ruecklauf_GradC: 'Rücklauf',
+        Raum_GradC:      'Raum',
+        Aussen_GradC:    'Außen',
+        shellyHeizung_W: 'Heizleistung',
+    }[ch] ?? ch),
+    zoomChangeHook: ts => console.log('[onZoomChange]', ts.isFullRange ? 'Vollbereich' :
+        `${new Date(ts.zoom.tMin).toISOString()} – ${new Date(ts.zoom.tMax).toISOString()}`),
+    onAfterDraw: plotCtx => {
+        if (plotCtx.divIndex === 1) plotCtx.setYLimits(0, 3);  // kW plot
+    },
+});
+
+// ── Daten laden ──────────────────────────────────────────────────────────────
+const d1 = makeData(2000, 0);
+libPlot.SetMeasuringData('libPlotCsv1', d1.tx, d1.vx);
+
+const d2 = makeBattData(500);
+libPlot.SetMeasuringData('libPlot4', d2.tx, d2.vx);
+
+// ── Test: getChannels ────────────────────────────────────────────────────────
+console.log('getChannels:', libPlot.getChannels('libPlotCsv1'));
+console.log('getTimeState:', libPlot.getTimeState('libPlotCsv1'));
+</script>
+</body>
+</html>
