@@ -767,10 +767,11 @@ function configure(className, cfg) {
     }
 
     const _MS = {
-        s: 1000, min: 60e3, h: 3600e3, d: 86400e3,
+        ms: 1, s: 1000, min: 60e3, h: 3600e3, d: 86400e3,
         w: 7 * 86400e3, mo: 30 * 86400e3, y: 365.25 * 86400e3,
     };
     const _TIME_SPECS = [
+        [1,'ms'],[2,'ms'],[5,'ms'],[10,'ms'],[20,'ms'],[50,'ms'],[100,'ms'],[200,'ms'],[500,'ms'],
         [1,'s'],[2,'s'],[5,'s'],[10,'s'],[15,'s'],[30,'s'],
         [1,'min'],[2,'min'],[5,'min'],[10,'min'],[15,'min'],[30,'min'],
         [1,'h'],[2,'h'],[3,'h'],[6,'h'],[12,'h'],
@@ -814,6 +815,7 @@ function configure(className, cfg) {
             d.setTime(minStart);
         }
         else if (unit === 's') { d.setMilliseconds(0); }
+        else if (unit === 'ms') { d.setTime(d.getTime() - (d.getTime() % stepMs)); }
         while (d.getTime() < tMin) { _addUnit(d, best[0], unit); }
         const dBack = new Date(d.getTime());
         _addUnit(dBack, -best[0], unit);
@@ -861,9 +863,12 @@ function configure(className, cfg) {
         const d    = new Date(t);
         const span = tMax - tMin;
         const pad2 = n => String(n).padStart(2, '0');
+        const pad3 = n => String(n).padStart(3, '0');
         const HH = pad2(d.getHours()), MM = pad2(d.getMinutes()), SS = pad2(d.getSeconds());
+        const ms = pad3(d.getMilliseconds());
         const dd = pad2(d.getDate()), mo = pad2(d.getMonth() + 1);
         const yyyy = d.getFullYear();
+        if (span < 5 * _MS.s)     return `${HH}:${MM}:${SS}.${ms}`;
         if (span < 5 * _MS.min)  return `${HH}:${MM}:${SS}`;
         if (span < 2 * _MS.d)    return `${HH}:${MM}`;
         if (span < 14 * _MS.d)   return `${dd}.${mo}\n${HH}:${MM}`;
